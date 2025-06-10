@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, request, jsonify, send_from_directory, render_template
 import os
+import csv
+import io
 import base64
 import pandas as pd
 import numpy as np
@@ -10,6 +12,7 @@ import threading
 import matplotlib
 matplotlib.use('Agg')  # Configura o backend para não interativo
 from flask_cors import CORS
+from feedback import gerar_feedback_individual, processar_csv, gerar_feedback_por_dados
 
 app = Flask(__name__)
 CORS(app) 
@@ -128,11 +131,128 @@ def predizer():
     
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+
+@app.route('/api/feedback/funcionario', methods=['POST'])
+def post_feedback_funcionario():
+    """Endpoint para gerar feedback a partir dos dados enviados no body JSON"""
+    try:
+        dados_funcionario = request.get_json()
+
+        if not dados_funcionario:
+            return jsonify({
+                'status': 'error',
+                'message': 'Nenhum dado JSON recebido no corpo da requisição'
+            }), 400
+
+        resultado = gerar_feedback_por_dados(dados_funcionario)
+
+        if resultado.get('status') == 'error':
+            return jsonify(resultado), 400
+
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Erro interno: {str(e)}'
+        }), 500
+
+@app.route('/api/feedback/funcionario/<codigo>', methods=['GET'])
+def get_feedback_funcionario(codigo):
+    """Endpoint para obter feedback de um funcionário específico"""
+    try:
+        feedback = gerar_feedback_individual(codigo)
+        
+        if 'error' in feedback:
+            return jsonify({'status': 'error', 'message': feedback['error']}), 404
+        
+        return jsonify({
+            'status': 'success',
+            'data': feedback,
+            'message': 'Feedback gerado com sucesso'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/feedback/todos', methods=['GET'])
+def get_all_feedbacks():
+    """Endpoint para obter feedbacks de todos os funcionários"""
+    try:
+        feedbacks = processar_csv()
+        
+        if isinstance(feedbacks, dict) and 'error' in feedbacks:
+            return jsonify({'status': 'error', 'message': feedbacks['error']}), 500
+        
+        return jsonify({
+            'status': 'success',
+            'data': feedbacks,
+            'total': len(feedbacks),
+            'message': 'Feedbacks coletados com sucesso'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/static/<filename>')
 def uploaded_file(filename):
     """Endpoint para servir arquivos estáticos"""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/api/atualizar_funcionarios', methods=['POST'])
+def atualizar_funcionarios():
+    if 'file' not in request.files:
+        return jsonify({'status': 'error', 'message': 'Nenhum arquivo enviado'}), 400
+
+    arquivo_csv = request.files['file']
+
+    if arquivo_csv.filename == '':
+        return jsonify({'status': 'error', 'message': 'Arquivo sem nome'}), 400
+
+    try:
+        # Ler o CSV recebido na memória (em texto)
+        stream = io.StringIO(arquivo_csv.stream.read().decode('utf-8'))
+        novos_dados = list(csv.DictReader(stream))
+
+        # Caminho do arquivo local
+        arquivo_local = 'static/dados_funcionarios.csv'
+
+        # Ler os dados atuais do arquivo local
+        if os.path.exists(arquivo_local):
+            with open(arquivo_local, mode='r', encoding='utf-8') as f:
+                dados_atuais = list(csv.DictReader(f))
+        else:
+            dados_atuais = []
+
+        # Transformar lista de dict em dict indexado pelo Codigo para facilitar atualização
+        dados_dict = {func['Codigo'].strip(): func for func in dados_atuais}
+
+        # Atualizar ou adicionar os dados recebidos
+        for novo_func in novos_dados:
+            codigo = novo_func.get('Codigo', '').strip()
+            if codigo:
+                dados_dict[codigo] = novo_func  # atualiza ou adiciona
+
+        # Obter lista atualizada (valores do dict)
+        dados_atualizados = list(dados_dict.values())
+
+        # Campos do CSV — idealmente usar os campos do arquivo original ou do CSV recebido
+        if dados_atualizados:
+            campos = dados_atualizados[0].keys()
+        else:
+            return jsonify({'status': 'error', 'message': 'Nenhum dado válido para atualizar'}), 400
+
+        # Escrever o arquivo CSV atualizado
+        with open(arquivo_local, mode='w', newline='', encoding='utf-8') as f:
+            escritor = csv.DictWriter(f, fieldnames=campos)
+            escritor.writeheader()
+            escritor.writerows(dados_atualizados)
+
+        return jsonify({'status': 'success', 'message': 'Arquivo atualizado com sucesso'})
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Erro ao processar arquivo: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
