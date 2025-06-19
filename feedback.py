@@ -535,7 +535,7 @@ def gerar_feedback_individual(codigo_funcionario):
                     print(f"Feedback para o funcionário {linha.get('Nome', '')} (Código: {codigo_funcionario}):\n")
                     print(feedback)
 
-                    return {"data": feedback, "message": "Feedback gerado com sucesso", "status": "success"}
+                    return feedback
 
             if not funcionario_encontrado:
                 print(f"Funcionário com código {codigo_funcionario} não encontrado.")
@@ -561,6 +561,7 @@ def gerar_feedback_por_dados(dados_funcionario):
         comportamento = dados_funcionario.get('Comportamento', '-')
         nota_final = dados_funcionario.get('Nota Final', '0')
 
+        print('DADOS CHEGARAM',nome,cumprimento_tarefas)
         # Gerar o texto do feedback usando função já existente
         feedback = gerar_feedback(
             nome=nome,

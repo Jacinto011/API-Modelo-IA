@@ -15,3 +15,5 @@ Codigo,Nome,Cargo,Mês,Assiduidade,Pontualidade,Cumprimento Tarefas,Comportament
 1014,Beatriz Castro,Recrutador,5,5,6,7,6,5,Regular,['']
 1015,Miguel Pinto,Especialista em Dados,5,8,9,9,9,9,Excelente,['']
 1020,Jacinto Perreira,Especialista em Dados,7,7,9,8,9,9,Excelente,['']
+80773,Marta Chicava,Tecnico de Informatica,6,8,10,8,10,9,Muito Bom,
+93174,Manuel Alberto,Tecnico de Informatica,6,6,8,10,8,8.2,Muito Bom,

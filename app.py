@@ -138,6 +138,7 @@ def post_feedback_funcionario():
     """Endpoint para gerar feedback a partir dos dados enviados no body JSON"""
     try:
         dados_funcionario = request.get_json()
+        print(dados_funcionario)
 
         if not dados_funcionario:
             return jsonify({
