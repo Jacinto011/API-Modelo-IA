@@ -7,12 +7,31 @@ import base64
 import pandas as pd
 import numpy as np
 from clustering_funcionarios import run_clustering
-from predicao_funcionario import run_prediction
 import threading
 import matplotlib
 matplotlib.use('Agg')  # Configura o backend para não interativo
 from flask_cors import CORS
 from feedback import gerar_feedback_individual, processar_csv, gerar_feedback_por_dados
+from datetime import datetime
+from flask import Flask, request, jsonify
+import joblib
+
+
+# Carregar modelo e encoders
+model = joblib.load('model/employee_performance_model.pkl')
+le_mes = joblib.load('model/month_encoder.pkl')
+le_cargo = joblib.load('model/role_encoder.pkl')
+
+# Mapeamento de notas para classificação
+def get_classification(nota):
+    if nota >= 8:
+        return "Muito Bom"
+    elif nota >= 7:
+        return "Bom"
+    elif nota >= 6:
+        return "Regular"
+    else:
+        return "Insuficiente"
 
 app = Flask(__name__)
 CORS(app) 
@@ -75,63 +94,87 @@ def clusterizar():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/predizer', methods=['GET', 'POST'])
-def predizer():
-    """Endpoint para fazer predições"""
+
+
+@app.route('/api/predizer', methods=['POST'])
+def predict_performance():
+   
     try:
-        # Se for POST, verifica se há um novo arquivo
-        if request.method == 'POST' and 'file' in request.files:
-            file = request.files['file']
-            if file.filename != '':
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'dados_funcionarios.csv')
-                file.save(file_path)
+        data = request.json
         
-        # Verifica se é uma predição única ou em lote
-        if request.method == 'POST' and request.json:
-            # Predição única a partir dos dados enviados
-            dados = request.json
-            resultado = run_prediction(
-                float(dados.get('Cumprimento Tarefas', 0)),
-                float(dados.get('Assiduidade', 0)),
-                float(dados.get('Pontualidade', 0)),
-                float(dados.get('Comportamento', 0)),
-                int(dados.get('Mês', 1))
-            )
-            
-            # Garante que o resultado não contém NaN
-            clean_result = {k: (None if v is None or (isinstance(v, float) and np.isnan(v)) else v) 
-                          for k, v in resultado.items()}
-            
-            response = {
-                'status': 'success',
-                'resultado': clean_result,
-                'message': 'Predição realizada com sucesso'
-            }
-        else:
-            # Predição em lote (todo o dataset)
-            resultados, imagens = run_prediction()
-            
-            # Converte imagens para base64
-            imagens_base64 = {}
-            for nome, caminho in imagens.items():
-                if os.path.exists(caminho):
-                    imagens_base64[nome] = image_to_base64(caminho)
-            
-            # Prepara resposta com tratamento de NaN
-            clean_results = resultados.replace({np.nan: None}).to_dict(orient='records')
-            
-            response = {
-                'status': 'success',
-                'resultados': clean_results,
-                'imagens': imagens_base64,
-                'message': 'Predições realizadas com sucesso'
-            }
+        # Obter valores do request
+        task_completion = float(data.get('Cumprimento de Tarefas', 0))
+        attendance = float(data.get('Assiduidade', 0))
+        punctuality = float(data.get('Pontualidade', 0))
+        behavior = float(data.get('Comportamento', 0))
+        current_month = data.get('Mes', 'janeiro')  # default janeiro
+        prediction_months = int(data.get('MesesPrevisao', 3))
         
+        # Criar dataframe para previsão
+        predictions = []
+        current_year = datetime.now().year
+        
+        # Simular previsão para os próximos meses
+        for i in range(prediction_months):
+            # Calcular próximo mês (simplificado)
+            month_index = (le_mes.transform([current_month])[0] + i) % 12
+            next_month = le_mes.inverse_transform([month_index])[0]
+            
+            # Usar cargo genérico (poderia ser passado no request)
+            role = 'Recursos Humanos'
+            
+            # Preparar features
+            features = pd.DataFrame({
+                'Assiduidade': [attendance],
+                'Pontualidade': [punctuality],
+                'Cumprimento Tarefas': [task_completion],
+                'Comportamento': [behavior],
+                'Ano': [current_year],
+                'Mês': [month_index],
+                'Cargo': [le_cargo.transform([role])[0]]
+            })
+            
+            # Fazer previsão
+            predicted_score = model.predict(features)[0]
+            classification = get_classification(predicted_score)
+            
+            predictions.append({
+                'mes': next_month,
+                'notaPrevista': round(float(predicted_score), 2),
+                'classificacaoPrevista': classification
+            })
+        
+        # Calcular nota atual (usando o mês atual)
+        current_features = pd.DataFrame({
+            'Assiduidade': [attendance],
+            'Pontualidade': [punctuality],
+            'Cumprimento Tarefas': [task_completion],
+            'Comportamento': [behavior],
+            'Ano': [current_year],
+            'Mês': [le_mes.transform([current_month])[0]],
+            'Cargo': [le_cargo.transform([role])[0]]
+        })
+        
+        current_score = model.predict(current_features)[0]
+        
+        response = {
+            "success": True,
+            "data": {
+                "predicoes": predictions,
+                "notaAtual": round(float(current_score), 2),
+                "classificacaoAtual": get_classification(current_score)
+            }
+        }
+        print(response)
         return jsonify(response)
     
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "message": "Erro ao processar a predição"
+        }), 500
+  
 
 @app.route('/api/feedback/funcionario', methods=['POST'])
 def post_feedback_funcionario():

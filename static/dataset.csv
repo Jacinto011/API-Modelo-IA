@@ -15,11 +15,8 @@ Codigo,Nome,Cargo,Mês,Assiduidade,Pontualidade,Cumprimento Tarefas,Comportament
 1014,Beatriz Castro,Recrutador,5,5,6,7,6,5,Regular,['']
 1015,Miguel Pinto,Especialista em Dados,5,8,9,9,9,9,Excelente,['']
 1020,Jacinto Perreira,Especialista em Dados,7,7,9,8,9,9,Excelente,['']
-80773,Marta Chicava,Recursos Humanos,julho,8,8,10,10,9,Muito Bom,
-93174,Manuel Alberto,Tecnico de Informatica,julho,0,,0,0,0,Sem Avaliação,
-10507,Edwin Avelino,Tecnico de Informatica,julho,0,,0,0,0,Sem Avaliação,
-76290,Jacinto Patricio,Tecnico de Informatica,julho,8,,10,10,9.6,Muito Bom,
-31651,Carlos Benjamin,Recursos Humanos,julho,0,0,0,0,0,Sem Avaliação,
-67225,Augusto Manuel,Registo Academico,julho,9,9,,9,9.3,Muito Bom,
-59961,Jacinto Patricio,Tecnologia de Informacao,julho,8,10,10,10,9.5,Muito Bom,
-23760,Manuel Candido,Docente,julho,6,8,10,4,7.9,Bom,
+80773,Marta Chicava,Recursos Humanos,junho,8,8,9,7,8.5,Muito Bom,
+93174,Manuel Alberto,Tecnico de Informatica,junho,8,7,8,8,7,Muito Bom,
+10507,Edwin Avelino,Tecnico de Informatica,junho,9,7,5,8,9,Muito Bom,
+76290,Jacinto Patricio,Tecnico de Informatica,junho,9,8,7,8,9,Muito Bom,
+31651,Carlos Benjamin,Recursos Humanos,junho,7,8,9,9,7,Bom,
